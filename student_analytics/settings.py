@@ -23,9 +23,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-j$+zg&g-!)2m(nr+at3$om=%kcmku8y2$ajd2eq$%+16!n^-ry'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['student-analytics.onrender.com']
+ALLOWED_HOSTS = ['.onrender.com']
 
 
 # Application definition
