@@ -1,0 +1,238 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Student Performance Analytics System - Upload CSV data and visualize student performance with interactive charts.">
+    <title>Student Performance Analytics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'dashboard/css/style.css' %}">
+</head>
+<body>
+
+    <!-- Animated background particles -->
+    <div class="bg-particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-brand">
+            <span class="nav-icon">📊</span>
+            <h1>Student Analytics</h1>
+        </div>
+        <div class="nav-stats">
+            {% if has_data %}
+            <div class="nav-stat-chip">
+                <span class="chip-dot"></span>
+                {{ total_students }} Students &bull; {{ subject_names|length }} Subjects
+            </div>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="container">
+
+        <!-- Hero Section -->
+        <section class="hero-section" id="hero-section">
+            <div class="hero-content">
+                <h2 class="hero-title">
+                    <span class="gradient-text">Performance</span> Analytics Dashboard
+                </h2>
+                <p class="hero-subtitle">Upload student data and unlock powerful visual insights with interactive charts and detailed breakdowns.</p>
+            </div>
+        </section>
+
+        <!-- Upload Section -->
+        <section class="upload-section glass-card" id="upload-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span class="icon">📁</span> Upload Student Data
+                </h2>
+                <p class="section-desc">Upload a CSV with columns: <code>Name, Gender, Subject1, Subject2, ...</code> — any subject names work!</p>
+            </div>
+            <form action="{% url 'dashboard:upload_csv' %}" method="POST" enctype="multipart/form-data" class="upload-form" id="upload-form">
+                {% csrf_token %}
+                <div class="file-drop-zone" id="file-drop-zone">
+                    <div class="drop-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                    </div>
+                    <p class="drop-text">Drag & drop your CSV file here</p>
+                    <p class="drop-subtext">or</p>
+                    <label for="csv-file-input" class="btn btn-outline">Browse Files</label>
+                    <input type="file" name="csv_file" id="csv-file-input" accept=".csv" hidden>
+                    <p class="file-name-display" id="file-name-display"></p>
+                </div>
+                <button type="submit" class="btn btn-primary btn-upload" id="btn-upload" disabled>
+                    <span class="btn-icon">🚀</span> Upload & Analyze
+                </button>
+            </form>
+
+            {% if has_data %}
+            <form action="{% url 'dashboard:clear_data' %}" method="POST" class="clear-form">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-small" id="btn-clear">🗑️ Clear All Data</button>
+            </form>
+            {% endif %}
+        </section>
+
+        <!-- Messages -->
+        {% if messages %}
+        <div class="messages-container" id="messages-container">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}" id="alert-{{ forloop.counter }}">
+                <span class="alert-icon">
+                    {% if message.tags == 'success' %}✅{% elif message.tags == 'error' %}❌{% else %}ℹ️{% endif %}
+                </span>
+                {{ message }}
+                <button class="alert-close" onclick="this.parentElement.remove()">×</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if has_data %}
+        <!-- Stats Cards -->
+        <section class="stats-grid" id="stats-grid">
+            <div class="stat-card glass-card" id="stat-total">
+                <div class="stat-icon stat-icon-purple">👥</div>
+                <div class="stat-info">
+                    <span class="stat-value" data-target="{{ total_students }}">0</span>
+                    <span class="stat-label">Total Students</span>
+                </div>
+            </div>
+            <div class="stat-card glass-card" id="stat-overall">
+                <div class="stat-icon stat-icon-blue">🏆</div>
+                <div class="stat-info">
+                    <span class="stat-value" data-target="{{ avg_overall }}">0</span>
+                    <span class="stat-label">Overall Average</span>
+                </div>
+            </div>
+            {% for subj in subject_averages %}
+            <div class="stat-card glass-card" id="stat-subj-{{ forloop.counter }}">
+                <div class="stat-icon stat-icon-{% cycle 'green' 'orange' 'pink' 'cyan' 'purple' 'blue' 'green' %}">📘</div>
+                <div class="stat-info">
+                    <span class="stat-value" data-target="{{ subj.value }}">0</span>
+                    <span class="stat-label">Avg {{ subj.label }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </section>
+
+        <!-- Charts Section -->
+        <section class="charts-section" id="charts-section">
+            <div class="section-header">
+                <h2 class="section-title"><span class="icon">📈</span> Visual Analytics</h2>
+                <p class="section-desc">Interactive charts powered by Chart.js</p>
+            </div>
+
+            <div class="charts-grid">
+                <!-- Gender Performance Bar Chart -->
+                <div class="chart-card glass-card" id="chart-gender-card">
+                    <h3 class="chart-title">Gender-Based Performance</h3>
+                    <p class="chart-subtitle">Average scores comparison by gender across all subjects</p>
+                    <div class="chart-wrapper">
+                        <canvas id="genderChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Subject Averages Bar/Pie Chart -->
+                <div class="chart-card glass-card" id="chart-subjects-card">
+                    <h3 class="chart-title">Subject-Wise Averages</h3>
+                    <p class="chart-subtitle">Class average distribution across all subjects</p>
+                    <div class="chart-wrapper">
+                        <canvas id="subjectChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Student Averages Line Chart -->
+                <div class="chart-card chart-card-wide glass-card" id="chart-line-card">
+                    <h3 class="chart-title">Student Average Marks</h3>
+                    <p class="chart-subtitle">Individual student performance trends (top 20)</p>
+                    <div class="chart-wrapper chart-wrapper-wide">
+                        <canvas id="lineChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Gender Distribution Doughnut -->
+                <div class="chart-card glass-card" id="chart-donut-card">
+                    <h3 class="chart-title">Gender Distribution</h3>
+                    <p class="chart-subtitle">Student count by gender</p>
+                    <div class="chart-wrapper">
+                        <canvas id="genderDistChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Data Preview Table -->
+        <section class="table-section glass-card" id="table-section">
+            <div class="section-header">
+                <h2 class="section-title"><span class="icon">📋</span> Data Preview</h2>
+                <p class="section-desc">Showing first 50 records from the uploaded dataset</p>
+            </div>
+            <div class="table-wrapper">
+                <table class="data-table" id="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Gender</th>
+                            {% for subj_name in subject_names %}
+                            <th>{{ subj_name }}</th>
+                            {% endfor %}
+                            <th>Average</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr>
+                            <td class="row-num">{{ forloop.counter }}</td>
+                            <td class="cell-name">{{ student.name }}</td>
+                            <td>
+                                <span class="badge {% if student.gender == 'Male' %}badge-blue{% elif student.gender == 'Female' %}badge-pink{% else %}badge-gray{% endif %}">
+                                    {{ student.gender }}
+                                </span>
+                            </td>
+                            {% for subj_name, score in student.get_subject_list %}
+                            <td class="cell-score">{{ score }}</td>
+                            {% endfor %}
+                            <td class="cell-avg">{{ student.average_score }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer" id="footer">
+        <p>© 2026 Student Performance Analytics System &mdash; Built with Django, Pandas & Chart.js</p>
+    </footer>
+
+    {% if has_data %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script>
+        const CHART_DATA_URL = "{% url 'dashboard:chart_data' %}";
+    </script>
+    <script src="{% static 'dashboard/js/main.js' %}"></script>
+    {% else %}
+    <script src="{% static 'dashboard/js/main.js' %}"></script>
+    {% endif %}
+
+</body>
+</html>
